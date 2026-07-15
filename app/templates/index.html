@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Flotilla — Mantenimiento</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #101828;
+    --slate: #475467;
+    --slate-light: #98A2B3;
+    --border: #E4E7EC;
+    --surface: #FFFFFF;
+    --bg: #F7F8FA;
+    --primary: #1D4E89;
+    --primary-dark: #163C69;
+    --success: #12B76A; --success-bg: #ECFDF3;
+    --warning: #F79009; --warning-bg: #FFFAEB;
+    --danger: #D92D20; --danger-bg: #FEF3F2;
+    --neutral-bg: #F2F4F7;
+    --sidebar-w: 244px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0; background: var(--bg); color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Login ---------- */
+  #login-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #101828 0%, #182338 100%);
+  }
+  #login-card {
+    width: 360px; background: var(--surface); border-radius: 14px; padding: 36px 32px;
+    box-shadow: 0 20px 60px rgba(16,24,40,.35);
+  }
+  #login-card .brand-mark {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--primary);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
+    color: #fff; font-weight: 700; font-size: 1.1rem;
+  }
+  #login-card h1 { font-size: 1.15rem; margin: 0 0 4px; letter-spacing: -.01em; }
+  #login-card .subt { color: var(--slate); font-size: .85rem; margin-bottom: 24px; }
+
+  /* ---------- Shell ---------- */
+  #app-content { display: flex; min-height: 100vh; }
+  #sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; background: var(--ink); color: #fff;
+    display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0;
+  }
+  #sidebar .brand {
+    display: flex; align-items: center; gap: 10px; padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  #sidebar .brand .mark {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--primary);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem;
+  }
+  #sidebar .brand .name { font-size: .92rem; font-weight: 600; letter-spacing: -.01em; }
+  #sidebar .brand .name small { display: block; font-weight: 400; color: #98A2B3; font-size: .72rem; }
+  #nav-list { list-style: none; margin: 0; padding: 14px 12px; flex: 1; }
+  #nav-list button {
+    width: 100%; text-align: left; background: none; border: none; color: #CBD3E1;
+    padding: 10px 12px; border-radius: 8px; font-size: .87rem; font-weight: 500;
+    display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 2px;
+  }
+  #nav-list button:hover { background: rgba(255,255,255,.06); color: #fff; }
+  #nav-list button.activo { background: var(--primary); color: #fff; }
+  #nav-list button .ico { width: 18px; text-align: center; }
+  #sidebar-footer {
+    padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.08); font-size: .8rem;
+  }
+  #sidebar-footer #usuario-actual { color: #fff; font-weight: 600; display:block; }
+  #sidebar-footer .rol-tag { color: #98A2B3; font-size: .75rem; }
+  #btn-logout {
+    margin-top: 10px; width: 100%; background: rgba(255,255,255,.06); color: #CBD3E1;
+    border: 1px solid rgba(255,255,255,.1); padding: 7px 10px; border-radius: 7px;
+    font-size: .8rem; cursor: pointer;
+  }
+  #btn-logout:hover { background: rgba(255,255,255,.12); }
+
+  #main-area { margin-left: var(--sidebar-w); flex: 1; min-width: 0; }
+  #topbar {
+    padding: 18px 32px; border-bottom: 1px solid var(--border); background: var(--surface);
+    position: sticky; top: 0; z-index: 5;
+  }
+  #topbar h1 { font-size: 1.15rem; margin: 0; letter-spacing: -.01em; }
+  #topbar .subt { font-size: .82rem; color: var(--slate); margin-top: 2px; }
+
+  main { padding: 28px 32px 60px; max-width: 1140px; }
+  .page { display: none; }
+  .page.activa { display: block; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 22px; margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: .78rem; color: var(--slate); text-transform: uppercase; letter-spacing: .06em;
+    margin: 0 0 16px; font-weight: 600;
+  }
+  .card .card-desc { font-size: .85rem; color: var(--slate); margin: -10px 0 16px; max-width: 560px; }
+
+  /* ---------- Fleet health bar (signature element) ---------- */
+  #salud-flotilla { margin-bottom: 20px; }
+  #salud-flotilla .barra {
+    display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--neutral-bg);
+  }
+  #salud-flotilla .seg { transition: width .4s ease; }
+  #salud-flotilla .seg.al_corriente { background: var(--success); }
+  #salud-flotilla .seg.proximo { background: var(--warning); }
+  #salud-flotilla .seg.vencido { background: var(--danger); }
+  #salud-flotilla .seg.sin_regla { background: var(--slate-light); }
+  #salud-flotilla .leyenda { display: flex; gap: 20px; margin-top: 10px; font-size: .8rem; color: var(--slate); flex-wrap: wrap; }
+  #salud-flotilla .leyenda .punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+
+  /* ---------- Tables ---------- */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 12px; font-size: .86rem; }
+  thead th {
+    color: var(--slate); font-weight: 600; font-size: .74rem; text-transform: uppercase;
+    letter-spacing: .04em; border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg); }
+  td.num, th.num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  .badge {
+    padding: 3px 10px; border-radius: 999px; font-size: .74rem; font-weight: 600;
+    display: inline-block; white-space: nowrap;
+  }
+  .al_corriente { background: var(--success-bg); color: var(--success); }
+  .proximo { background: var(--warning-bg); color: var(--warning); }
+  .vencido { background: var(--danger-bg); color: var(--danger); }
+  .sin_regla, .sin_dato { background: var(--neutral-bg); color: var(--slate); }
+
+  /* ---------- Forms ---------- */
+  form { display: grid; gap: 12px; max-width: 520px; }
+  label { font-size: .78rem; color: var(--slate); font-weight: 500; }
+  input, select, textarea {
+    background: var(--surface); border: 1px solid var(--border); color: var(--ink);
+    padding: 9px 11px; border-radius: 8px; font-size: .88rem; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+  button { font-family: inherit; }
+  button[type="submit"] {
+    cursor: pointer; background: var(--primary); color: #fff; border: none;
+    padding: 10px 16px; border-radius: 8px; font-size: .88rem; font-weight: 600; justify-self: start;
+  }
+  button[type="submit"]:hover { background: var(--primary-dark); }
+  .row { display: flex; gap: 12px; }
+  .row > * { flex: 1; }
+  .checkbox-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; }
+  .checkbox-row label { display: flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 400; }
+  .checkbox-row input { width: auto; padding: 0; }
+  .error-msg { color: var(--danger); font-size: .82rem; }
+
+  /* ---------- Alerts ---------- */
+  .alerta-card {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--danger);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; font-size: .87rem; display: flex;
+    align-items: center; gap: 10px;
+  }
+  .alerta-card.proximo-border { border-left-color: var(--warning); }
+  .alerta-todo-bien { color: var(--success); font-size: .9rem; font-weight: 500; }
+
+  .btn-secundario {
+    cursor: pointer; background: var(--danger-bg); color: var(--danger); border: 1px solid transparent;
+    padding: 6px 12px; border-radius: 7px; font-size: .8rem; font-weight: 600;
+  }
+  .oculto { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div id="login-card">
+    <div class="brand-mark">F</div>
+    <h1>Flotilla — Mantenimiento</h1>
+    <div class="subt">Inicia sesión para continuar</div>
+    <form id="form-login">
+      <label>Usuario</label>
+      <input name="username" required autocomplete="username">
+      <label>Contraseña</label>
+      <input name="password" type="password" required autocomplete="current-password">
+      <button type="submit">Entrar</button>
+      <div class="error-msg" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app-content" class="oculto">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="mark">F</div>
+      <div class="name">Flotilla<small>Mantenimiento</small></div>
+    </div>
+    <ul id="nav-list">
+      <li><button data-pagina="resumen" class="nav-item"><span class="ico">◈</span> Resumen</button></li>
+      <li><button data-pagina="unidades" data-modulo="unidades" class="nav-item"><span class="ico">🚚</span> Unidades</button></li>
+      <li><button data-pagina="mantenimientos" data-modulo="mantenimientos" class="nav-item"><span class="ico">🔧</span> Mantenimientos</button></li>
+      <li><button data-pagina="llantas" data-modulo="llantas" class="nav-item"><span class="ico">🛞</span> Llantas</button></li>
+      <li><button data-pagina="importar" data-modulo="importar" class="nav-item"><span class="ico">⇩</span> Importar CSV</button></li>
+      <li><button data-pagina="usuarios" id="nav-usuarios" class="nav-item oculto"><span class="ico">👤</span> Usuarios</button></li>
+    </ul>
+    <div id="sidebar-footer">
+      <span id="usuario-actual"></span>
+      <span class="rol-tag" id="usuario-rol"></span>
+      <button id="btn-logout">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <div id="main-area">
+    <div id="topbar">
+      <h1 id="titulo-pagina">Resumen</h1>
+      <div class="subt" id="subtitulo-pagina">Estado general de la flotilla</div>
+    </div>
+
+    <main>
+      <!-- ---------- Página: Resumen ---------- -->
+      <section class="page activa" id="page-resumen">
+        <div class="card" id="salud-flotilla">
+          <h2>Salud de la flotilla</h2>
+          <div class="barra" id="barra-salud"></div>
+          <div class="leyenda" id="leyenda-salud"></div>
+        </div>
+        <div class="card">
+          <h2>Alertas activas</h2>
+          <div id="lista-alertas" style="font-size:.9rem;">Cargando...</div>
+        </div>
+      </section>
+
+      <!-- ---------- Página: Unidades ---------- -->
+      <section class="page" id="page-unidades" data-modulo="unidades">
+        <div class="card">
+          <h2>Estado de unidades</h2>
+          <table id="tabla-unidades">
+            <thead>
+              <tr>
+                <th>Económico</th><th>Tipo</th><th class="num">Km actual</th><th class="num">Próximo servicio</th>
+                <th class="num">Km restantes</th><th>Estado</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2 id="titulo-form-unidad">Registrar unidad nueva</h2>
+          <form id="form-unidad">
+            <input type="hidden" name="unidad_id" value="">
+            <div class="row">
+              <div><label>Económico</label><input name="economico" required></div>
+              <div><label>Km actual</label><input name="km_actual" type="number" step="0.1" value="0"></div>
+            </div>
+            <label>Tipo de unidad</label>
+            <select name="tipo_unidad">
+              <option value="propia">Propia (flotilla, se actualiza con Samsara)</option>
+              <option value="publico">Pública (cliente externo, todo manual)</option>
+            </select>
+            <div class="row">
+              <div><label>Intervalo preventivo (km)</label><input name="intervalo_km" type="number" step="0.1"></div>
+              <div><label>Intervalo (días, opcional)</label><input name="intervalo_dias" type="number"></div>
+            </div>
+            <label>Descripción</label>
+            <input name="descripcion">
+            <label>Nombre en Samsara (solo si es distinto del económico, ej. "AVEO 012")</label>
+            <input name="nombre_samsara" placeholder="Déjalo vacío si es igual al económico">
+            <div class="row" style="flex: 0;">
+              <button type="submit" id="btn-guardar-unidad">Guardar unidad</button>
+              <button type="button" id="btn-cancelar-edicion" class="btn-secundario oculto" style="flex:0; padding:10px 16px;">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ---------- Página: Importar CSV ---------- -->
+      <section class="page" id="page-importar" data-modulo="importar">
+        <div class="card">
+          <h2>Importar kilometraje desde Samsara</h2>
+          <p class="card-desc">Descarga el CSV del informe "MANTENIMIENTO" en Samsara y súbelo aquí. Actualiza el km actual de cada unidad automáticamente.</p>
+          <form id="form-importar">
+            <input type="file" name="archivo" accept=".csv" required>
+            <button type="submit">Importar CSV</button>
+          </form>
+          <div id="resultado-importacion" style="margin-top:14px; font-size:.85rem;"></div>
+        </div>
+      </section>
+
+      <!-- ---------- Página: Mantenimientos ---------- -->
+      <section class="page" id="page-mantenimientos" data-modulo="mantenimientos">
+        <div class="card">
+          <h2>Historial de mantenimientos</h2>
+          <table id="tabla-historial-mant">
+            <thead>
+              <tr>
+                <th>Unidad</th><th>Tipo</th><th>Subtipo</th><th class="num">Km</th>
+                <th>Entrada</th><th>Salida</th><th class="num">Costo</th><th>Descripción</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>Registrar mantenimiento</h2>
+          <form id="form-mant">
+            <label>Unidad</label>
+            <select name="unidad_id" id="select-unidad" required></select>
+
+            <label>Tipo</label>
+            <select name="tipo">
+              <option value="preventivo">Preventivo</option>
+              <option value="correctivo">Correctivo</option>
+              <option value="otro">Otra reparación (manual)</option>
+            </select>
+
+            <label>Subtipo (solo si es correctivo)</label>
+            <select name="subtipo_correctivo">
+              <option value="">—</option>
+              <option value="electrico">Eléctrico</option>
+              <option value="mecanico">Mecánico</option>
+              <option value="soldadura">Soldadura</option>
+              <option value="otro">Otro</option>
+            </select>
+
+            <div class="row">
+              <div><label>Km del servicio</label><input name="km_servicio" type="number" step="0.1" required></div>
+              <div><label>Costo</label><input name="costo" type="number" step="0.01" value="0"></div>
+            </div>
+            <div class="row">
+              <div><label>Fecha entrada</label><input name="fecha_entrada" type="datetime-local" required></div>
+              <div><label>Fecha salida</label><input name="fecha_salida" type="datetime-local"></div>
+            </div>
+            <label>Descripción del trabajo</label>
+            <textarea name="descripcion" rows="2"></textarea>
+            <button type="submit">Guardar mantenimiento</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ---------- Página: Llantas ---------- -->
+      <section class="page" id="page-llantas" data-modulo="llantas">
+        <div class="card">
+          <h2>Control de llantas</h2>
+          <table id="tabla-llantas">
+            <thead>
+              <tr>
+                <th>Unidad</th><th>Posición</th><th>Marca/Modelo</th><th>DOT</th>
+                <th class="num">Km recorridos</th><th class="num">Km restantes</th>
+                <th class="num">Profundidad (mm)</th><th class="num">Renovaciones</th><th>Estado</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>Registrar llanta nueva</h2>
+          <form id="form-llanta">
+            <label>Unidad</label>
+            <select name="unidad_id" id="select-unidad-llanta" required></select>
+
+            <label>Posición</label>
+            <select name="posicion">
+              <option value="delantera_izquierda">Delantera izquierda</option>
+              <option value="delantera_derecha">Delantera derecha</option>
+              <option value="trasera_izquierda_interior">Trasera izquierda interior</option>
+              <option value="trasera_izquierda_exterior">Trasera izquierda exterior</option>
+              <option value="trasera_derecha_interior">Trasera derecha interior</option>
+              <option value="trasera_derecha_exterior">Trasera derecha exterior</option>
+              <option value="refaccion">Refacción</option>
+            </select>
+
+            <div class="row">
+              <div><label>Marca</label><input name="marca"></div>
+              <div><label>Modelo</label><input name="modelo"></div>
+            </div>
+            <label>Número de serie / DOT</label>
+            <input name="numero_serie_dot">
+
+            <div class="row">
+              <div><label>Fecha de instalación</label><input name="fecha_instalacion" type="datetime-local" required></div>
+              <div><label>Km de la unidad al instalar</label><input name="km_instalacion" type="number" step="0.1" value="0"></div>
+            </div>
+            <div class="row">
+              <div><label>Vida útil esperada (km)</label><input name="km_vida_util" type="number" step="0.1" placeholder="ej. 80000"></div>
+              <div><label>Profundidad inicial (mm)</label><input name="profundidad_mm" type="number" step="0.1" placeholder="ej. 12"></div>
+            </div>
+            <button type="submit">Guardar llanta</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Registrar inspección de llanta</h2>
+          <form id="form-inspeccion">
+            <label>Llanta</label>
+            <select name="llanta_id" id="select-llanta" required></select>
+            <label>Profundidad medida (mm)</label>
+            <input name="profundidad_mm" type="number" step="0.1" required>
+            <label>Notas</label>
+            <input name="notas" placeholder="ej. desgaste irregular, ruido, etc.">
+            <button type="submit">Guardar inspección</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ---------- Página: Usuarios (solo admin) ---------- -->
+      <section class="page" id="page-usuarios">
+        <div class="card">
+          <h2>Usuarios</h2>
+          <table id="tabla-usuarios">
+            <thead>
+              <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Módulos</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>Crear usuario nuevo</h2>
+          <form id="form-usuario">
+            <div class="row">
+              <div><label>Usuario</label><input name="username" required></div>
+              <div><label>Contraseña</label><input name="password" type="password" required></div>
+            </div>
+            <label>Nombre completo</label>
+            <input name="nombre_completo">
+            <label>Módulos a los que puede acceder</label>
+            <div class="checkbox-row" id="checkboxes-modulos">
+              <label><input type="checkbox" value="unidades"> Unidades</label>
+              <label><input type="checkbox" value="mantenimientos"> Mantenimientos</label>
+              <label><input type="checkbox" value="llantas"> Llantas</label>
+              <label><input type="checkbox" value="importar"> Importar CSV</label>
+            </div>
+            <label><input type="checkbox" name="es_admin" style="width:auto;"> Es administrador (ve y edita todo, administra usuarios)</label>
+            <button type="submit">Crear usuario</button>
+            <div class="error-msg" id="usuario-error"></div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+  const TITULOS_PAGINA = {
+    resumen: ['Resumen', 'Estado general de la flotilla'],
+    unidades: ['Unidades', 'Kilometraje y calendario de servicio por económico'],
+    mantenimientos: ['Mantenimientos', 'Registro de trabajos preventivos, correctivos y reparaciones'],
+    llantas: ['Llantas', 'Posición, vida útil y profundidad de dibujo por unidad'],
+    importar: ['Importar CSV', 'Actualizar kilometraje desde el informe de Samsara'],
+    usuarios: ['Usuarios', 'Accesos y permisos por módulo'],
+  };
+
+  function irAPagina(pagina) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('activa'));
+    document.getElementById(`page-${pagina}`).classList.add('activa');
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('activo', b.dataset.pagina === pagina));
+    const [titulo, subt] = TITULOS_PAGINA[pagina] || [pagina, ''];
+    document.getElementById('titulo-pagina').textContent = titulo;
+    document.getElementById('subtitulo-pagina').textContent = subt;
+  }
+
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => irAPagina(btn.dataset.pagina));
+  });
+
+  async function cargarUnidades() {
+    const res = await fetch('/api/unidades/');
+    const unidades = await res.json();
+
+    const tbody = document.querySelector('#tabla-unidades tbody');
+    tbody.innerHTML = '';
+    const select = document.getElementById('select-unidad');
+    select.innerHTML = '';
+    const selectLlanta = document.getElementById('select-unidad-llanta');
+    if (selectLlanta) selectLlanta.innerHTML = '';
+
+    unidades.forEach(u => {
+      const tr = document.createElement('tr');
+      const tipoLabel = u.tipo_unidad === 'publico' ? 'Público' : 'Propia';
+      tr.innerHTML = `
+        <td>${u.economico}</td>
+        <td>${tipoLabel}</td>
+        <td class="num mono">${u.km_actual}</td>
+        <td class="num mono">${u.proximo_km_servicio ?? '—'}</td>
+        <td class="num mono">${u.km_restantes ?? '—'}</td>
+        <td><span class="badge ${u.estado}">${u.estado.replace('_',' ')}</span></td>
+        <td><button data-id="${u.id}" class="btn-editar-unidad btn-secundario" style="background:var(--neutral-bg); color:var(--ink);">Editar</button></td>
+      `;
+      tbody.appendChild(tr);
+
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = `${u.economico} (${u.km_actual} km)`;
+      select.appendChild(opt);
+
+      if (selectLlanta) {
+        const o2 = document.createElement('option');
+        o2.value = u.id;
+        o2.textContent = `${u.economico} (${u.km_actual} km)`;
+        selectLlanta.appendChild(o2);
+      }
+    });
+
+    renderSaludFlotilla(unidades);
+    ultimasUnidadesCargadas = unidades;
+
+    document.querySelectorAll('.btn-editar-unidad').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const u = ultimasUnidadesCargadas.find(x => x.id === parseInt(btn.dataset.id));
+        if (u) entrarModoEdicionUnidad(u);
+      });
+    });
+  }
+
+  let ultimasUnidadesCargadas = [];
+
+  function entrarModoEdicionUnidad(u) {
+    const form = document.getElementById('form-unidad');
+    form.unidad_id.value = u.id;
+    form.economico.value = u.economico;
+    form.km_actual.value = u.km_actual;
+    form.tipo_unidad.value = u.tipo_unidad;
+    form.descripcion.value = u.descripcion || '';
+    form.nombre_samsara.value = u.nombre_samsara || '';
+    form.intervalo_km.value = u.regla?.intervalo_km ?? '';
+    form.intervalo_dias.value = u.regla?.intervalo_dias ?? '';
+
+    document.getElementById('titulo-form-unidad').textContent = `Editando unidad: ${u.economico}`;
+    document.getElementById('btn-guardar-unidad').textContent = 'Guardar cambios';
+    document.getElementById('btn-cancelar-edicion').classList.remove('oculto');
+    irAPagina('unidades');
+    form.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function salirModoEdicionUnidad() {
+    const form = document.getElementById('form-unidad');
+    form.reset();
+    form.unidad_id.value = '';
+    document.getElementById('titulo-form-unidad').textContent = 'Registrar unidad nueva';
+    document.getElementById('btn-guardar-unidad').textContent = 'Guardar unidad';
+    document.getElementById('btn-cancelar-edicion').classList.add('oculto');
+  }
+
+  document.getElementById('btn-cancelar-edicion').addEventListener('click', salirModoEdicionUnidad);
+
+  function renderSaludFlotilla(unidades) {
+    const barra = document.getElementById('barra-salud');
+    const leyenda = document.getElementById('leyenda-salud');
+    if (!barra) return;
+
+    if (unidades.length === 0) {
+      barra.innerHTML = '';
+      leyenda.innerHTML = '<span style="color:var(--slate)">Aún no hay unidades registradas.</span>';
+      return;
+    }
+
+    const conteo = { al_corriente: 0, proximo: 0, vencido: 0, sin_regla: 0 };
+    unidades.forEach(u => { conteo[u.estado] = (conteo[u.estado] || 0) + 1; });
+
+    const etiquetas = {
+      al_corriente: 'Al corriente', proximo: 'Próximo servicio',
+      vencido: 'Vencido', sin_regla: 'Sin regla configurada',
+    };
+
+    barra.innerHTML = Object.entries(conteo)
+      .filter(([, n]) => n > 0)
+      .map(([estado, n]) => `<div class="seg ${estado}" style="width:${(n / unidades.length * 100).toFixed(1)}%"></div>`)
+      .join('');
+
+    leyenda.innerHTML = Object.entries(conteo)
+      .filter(([, n]) => n > 0)
+      .map(([estado, n]) => `<span><span class="punto" style="background:var(--${estado === 'al_corriente' ? 'success' : estado === 'proximo' ? 'warning' : estado === 'vencido' ? 'danger' : 'slate-light'})"></span>${etiquetas[estado]}: <b class="mono">${n}</b></span>`)
+      .join('');
+  }
+
+  document.getElementById('form-unidad').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const unidadId = fd.get('unidad_id');
+
+    if (unidadId) {
+      const body = {
+        economico: fd.get('economico'),
+        descripcion: fd.get('descripcion') || null,
+        nombre_samsara: fd.get('nombre_samsara') || null,
+        tipo_unidad: fd.get('tipo_unidad') || 'propia',
+        intervalo_km: fd.get('intervalo_km') ? parseFloat(fd.get('intervalo_km')) : null,
+        intervalo_dias: fd.get('intervalo_dias') ? parseInt(fd.get('intervalo_dias')) : null,
+      };
+      const res = await fetch(`/api/unidades/${unidadId}`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      if (res.ok) { salirModoEdicionUnidad(); cargarUnidades(); }
+      else { alert('Error: ' + (await res.text())); }
+      return;
+    }
+
+    const body = {
+      economico: fd.get('economico'),
+      descripcion: fd.get('descripcion') || null,
+      nombre_samsara: fd.get('nombre_samsara') || null,
+      tipo_unidad: fd.get('tipo_unidad') || 'propia',
+      km_actual: parseFloat(fd.get('km_actual') || 0),
+      intervalo_km: fd.get('intervalo_km') ? parseFloat(fd.get('intervalo_km')) : null,
+      intervalo_dias: fd.get('intervalo_dias') ? parseInt(fd.get('intervalo_dias')) : null,
+    };
+    const res = await fetch('/api/unidades/', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (res.ok) { e.target.reset(); cargarUnidades(); }
+    else { alert('Error: ' + (await res.text())); }
+  });
+
+  async function cargarHistorialMantenimientos() {
+    const tabla = document.getElementById('tabla-historial-mant');
+    if (!tabla) return;
+
+    const [resMant, resUnidades] = await Promise.all([
+      fetch('/api/mantenimientos/'),
+      fetch('/api/unidades/'),
+    ]);
+    const mantenimientos = await resMant.json();
+    const unidades = await resUnidades.json();
+    const mapaUnidades = Object.fromEntries(unidades.map(u => [u.id, u.economico]));
+
+    const ETIQUETAS_TIPO = { preventivo: 'Preventivo', correctivo: 'Correctivo', otro: 'Otra reparación' };
+
+    const tbody = tabla.querySelector('tbody');
+    tbody.innerHTML = '';
+    mantenimientos.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${mapaUnidades[m.unidad_id] ?? m.unidad_id}</td>
+        <td>${ETIQUETAS_TIPO[m.tipo] ?? m.tipo}</td>
+        <td>${m.subtipo_correctivo ?? '—'}</td>
+        <td class="num mono">${m.km_servicio}</td>
+        <td class="mono">${new Date(m.fecha_entrada).toLocaleString('es-MX')}</td>
+        <td class="mono">${m.fecha_salida ? new Date(m.fecha_salida).toLocaleString('es-MX') : '—'}</td>
+        <td class="num mono">$${m.costo}</td>
+        <td>${m.descripcion ?? '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('form-mant').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = {
+      unidad_id: parseInt(fd.get('unidad_id')),
+      tipo: fd.get('tipo'),
+      subtipo_correctivo: fd.get('subtipo_correctivo') || null,
+      km_servicio: parseFloat(fd.get('km_servicio')),
+      costo: parseFloat(fd.get('costo') || 0),
+      fecha_entrada: fd.get('fecha_entrada'),
+      fecha_salida: fd.get('fecha_salida') || null,
+      descripcion: fd.get('descripcion') || null,
+    };
+    const res = await fetch('/api/mantenimientos/', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (res.ok) { e.target.reset(); cargarUnidades(); cargarHistorialMantenimientos(); }
+    else { alert('Error: ' + (await res.text())); }
+  });
+
+  document.getElementById('form-importar').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const div = document.getElementById('resultado-importacion');
+    div.textContent = 'Importando...';
+
+    const res = await fetch('/api/importar/samsara-csv', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (data.error) {
+      div.innerHTML = `<span style="color:var(--danger)">${data.error}</span><br>Columnas encontradas: ${data.columnas_encontradas.join(', ')}`;
+      return;
+    }
+
+    let html = `<b>${data.actualizadas.length}</b> unidades actualizadas.`;
+    if (data.no_encontradas.length) {
+      html += `<br><span style="color:var(--warning)">No encontradas (revisa el nombre_samsara o el económico):</span> ${data.no_encontradas.join(', ')}`;
+    }
+    if (data.sin_dato_km.length) {
+      html += `<br><span style="color:var(--slate)">Sin dato de km en el CSV:</span> ${data.sin_dato_km.join(', ')}`;
+    }
+    div.innerHTML = html;
+    cargarUnidades();
+  });
+
+  const ETIQUETAS_POSICION = {
+    delantera_izquierda: 'Del. izq.',
+    delantera_derecha: 'Del. der.',
+    trasera_izquierda_interior: 'Tras. izq. int.',
+    trasera_izquierda_exterior: 'Tras. izq. ext.',
+    trasera_derecha_interior: 'Tras. der. int.',
+    trasera_derecha_exterior: 'Tras. der. ext.',
+    refaccion: 'Refacción',
+  };
+
+  async function cargarLlantas() {
+    const [resLlantas, resUnidades] = await Promise.all([
+      fetch('/api/llantas/'),
+      fetch('/api/unidades/'),
+    ]);
+    const llantas = await resLlantas.json();
+    const unidades = await resUnidades.json();
+    const mapaUnidades = Object.fromEntries(unidades.map(u => [u.id, u.economico]));
+
+    const tbody = document.querySelector('#tabla-llantas tbody');
+    tbody.innerHTML = '';
+    const select = document.getElementById('select-llanta');
+    select.innerHTML = '';
+
+    llantas.forEach(l => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${mapaUnidades[l.unidad_id] ?? l.unidad_id}</td>
+        <td>${ETIQUETAS_POSICION[l.posicion] ?? l.posicion}</td>
+        <td>${[l.marca, l.modelo].filter(Boolean).join(' ') || '—'}</td>
+        <td class="mono">${l.numero_serie_dot ?? '—'}</td>
+        <td class="num mono">${l.km_recorridos ?? '—'}</td>
+        <td class="num mono">${l.km_restantes_vida_util ?? '—'}</td>
+        <td class="num mono">${l.profundidad_mm ?? '—'}</td>
+        <td class="num mono">${l.veces_renovada ?? 0}</td>
+        <td><span class="badge ${l.estado}">${l.estado.replace('_',' ')}</span></td>
+        <td><button data-id="${l.id}" class="btn-baja btn-secundario">Dar de baja</button></td>
+      `;
+      tbody.appendChild(tr);
+
+      const opt = document.createElement('option');
+      opt.value = l.id;
+      opt.textContent = `${mapaUnidades[l.unidad_id] ?? l.unidad_id} — ${ETIQUETAS_POSICION[l.posicion] ?? l.posicion}`;
+      select.appendChild(opt);
+    });
+
+    document.querySelectorAll('.btn-baja').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('¿Dar de baja esta llanta? (se marca como ya no montada)')) return;
+        await fetch(`/api/llantas/${btn.dataset.id}/dar-de-baja`, { method: 'POST' });
+        cargarLlantas();
+      });
+    });
+  }
+
+  document.getElementById('form-llanta').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = {
+      unidad_id: parseInt(fd.get('unidad_id')),
+      posicion: fd.get('posicion'),
+      marca: fd.get('marca') || null,
+      modelo: fd.get('modelo') || null,
+      numero_serie_dot: fd.get('numero_serie_dot') || null,
+      fecha_instalacion: fd.get('fecha_instalacion'),
+      km_instalacion: parseFloat(fd.get('km_instalacion') || 0),
+      km_vida_util: fd.get('km_vida_util') ? parseFloat(fd.get('km_vida_util')) : null,
+      profundidad_mm: fd.get('profundidad_mm') ? parseFloat(fd.get('profundidad_mm')) : null,
+    };
+    const res = await fetch('/api/llantas/', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (res.ok) { e.target.reset(); cargarLlantas(); }
+    else { alert('Error: ' + (await res.text())); }
+  });
+
+  document.getElementById('form-inspeccion').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const llantaId = fd.get('llanta_id');
+    const body = {
+      profundidad_mm: parseFloat(fd.get('profundidad_mm')),
+      notas: fd.get('notas') || null,
+    };
+    const res = await fetch(`/api/llantas/${llantaId}/inspecciones`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (res.ok) { e.target.reset(); cargarLlantas(); }
+    else { alert('Error: ' + (await res.text())); }
+  });
+
+  // ---------- Autenticación y permisos ----------
+
+  let usuarioActual = null;
+
+  async function cargarAlertas() {
+    const div = document.getElementById('lista-alertas');
+    const res = await fetch('/api/alertas/');
+    if (!res.ok) { div.textContent = 'No se pudieron cargar las alertas.'; return; }
+    const data = await res.json();
+
+    if (data.total === 0) {
+      div.innerHTML = '<span class="alerta-todo-bien">✓ Todo al corriente. Sin alertas por ahora.</span>';
+      return;
+    }
+
+    let html = '';
+    data.unidades.forEach(u => {
+      const clase = u.estado === 'vencido' ? '' : 'proximo-border';
+      html += `<div class="alerta-card ${clase}">🚚 Unidad <b>${u.economico}</b> — <span class="badge ${u.estado}">${u.estado.replace('_',' ')}</span> (le quedan <span class="mono">${u.km_restantes ?? '—'}</span> km para el próximo servicio)</div>`;
+    });
+    data.llantas.forEach(l => {
+      const clase = l.estado === 'vencido' ? '' : 'proximo-border';
+      html += `<div class="alerta-card ${clase}">🛞 Llanta en unidad ${l.unidad_id} (${ETIQUETAS_POSICION[l.posicion] ?? l.posicion}) — <span class="badge ${l.estado}">${l.estado.replace('_',' ')}</span></div>`;
+    });
+    div.innerHTML = html;
+  }
+
+  function aplicarPermisosUI() {
+    const puedeVerTodo = usuarioActual.es_admin;
+    const modulos = new Set(usuarioActual.modulos_permitidos);
+
+    document.querySelectorAll('[data-modulo]').forEach(el => {
+      const modulo = el.dataset.modulo;
+      el.classList.toggle('oculto', !(puedeVerTodo || modulos.has(modulo)));
+    });
+
+    document.getElementById('nav-usuarios').classList.toggle('oculto', !puedeVerTodo);
+
+    document.getElementById('usuario-actual').textContent = usuarioActual.username;
+    document.getElementById('usuario-rol').textContent = puedeVerTodo ? 'Administrador' : 'Acceso limitado';
+  }
+
+  async function cargarDatosSegunPermisos() {
+    const modulos = new Set(usuarioActual.modulos_permitidos);
+    const puedeVerTodo = usuarioActual.es_admin;
+
+    cargarAlertas();
+    if (puedeVerTodo || modulos.has('unidades')) cargarUnidades();
+    if (puedeVerTodo || modulos.has('mantenimientos')) cargarHistorialMantenimientos();
+    if (puedeVerTodo || modulos.has('llantas')) cargarLlantas();
+    if (puedeVerTodo) cargarUsuarios();
+  }
+
+  async function cargarUsuarios() {
+    const res = await fetch('/api/usuarios/');
+    if (!res.ok) return;
+    const usuarios = await res.json();
+
+    const tbody = document.querySelector('#tabla-usuarios tbody');
+    tbody.innerHTML = '';
+    usuarios.forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.username}</td>
+        <td>${u.nombre_completo ?? '—'}</td>
+        <td>${u.es_admin ? 'Admin' : 'Limitado'}</td>
+        <td>${u.es_admin ? 'Todos' : (u.modulos_permitidos.join(', ') || '—')}</td>
+        <td>${u.activo ? (u.es_admin ? '' : `<button data-id="${u.id}" class="btn-desactivar btn-secundario">Desactivar</button>`) : '<span style="color:var(--slate);">Inactivo</span>'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.querySelectorAll('.btn-desactivar').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('¿Desactivar este usuario? Ya no podrá iniciar sesión.')) return;
+        await fetch(`/api/usuarios/${btn.dataset.id}/desactivar`, { method: 'POST' });
+        cargarUsuarios();
+      });
+    });
+  }
+
+  document.getElementById('form-usuario').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const modulosSeleccionados = Array.from(
+      document.querySelectorAll('#checkboxes-modulos input:checked')
+    ).map(cb => cb.value);
+
+    const body = {
+      username: fd.get('username'),
+      password: fd.get('password'),
+      nombre_completo: fd.get('nombre_completo') || null,
+      es_admin: fd.get('es_admin') === 'on',
+      modulos_permitidos: modulosSeleccionados,
+    };
+
+    const res = await fetch('/api/usuarios/', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const errorDiv = document.getElementById('usuario-error');
+    if (res.ok) {
+      errorDiv.textContent = '';
+      e.target.reset();
+      cargarUsuarios();
+    } else {
+      const data = await res.json();
+      errorDiv.textContent = data.detail || 'Error al crear usuario';
+    }
+  });
+
+  document.getElementById('form-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const res = await fetch('/api/auth/login', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ username: fd.get('username'), password: fd.get('password') })
+    });
+    if (res.ok) {
+      iniciarApp();
+    } else {
+      document.getElementById('login-error').textContent = 'Usuario o contraseña incorrectos';
+    }
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    location.reload();
+  });
+
+  async function iniciarApp() {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) {
+      document.getElementById('login-screen').classList.remove('oculto');
+      document.getElementById('app-content').classList.add('oculto');
+      return;
+    }
+    usuarioActual = await res.json();
+    document.getElementById('login-screen').classList.add('oculto');
+    document.getElementById('app-content').classList.remove('oculto');
+    aplicarPermisosUI();
+    cargarDatosSegunPermisos();
+  }
+
+  iniciarApp();
+</script>
+</body>
+</html>
