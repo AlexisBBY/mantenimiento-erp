@@ -50,6 +50,7 @@ class Unidad(Base):
     economico = Column(String, unique=True, index=True, nullable=False)
     descripcion = Column(String, nullable=True)
     nombre_samsara = Column(String, nullable=True)  # ej. "AVEO 012", si difiere del económico
+    samsara_vehicle_id = Column(String, nullable=True)  # ID real del vehículo en Samsara (para la API)
     tipo_unidad = Column(Enum(TipoUnidad), nullable=False, default=TipoUnidad.propia)
     km_actual = Column(Float, default=0)
     fecha_actualizacion_km = Column(DateTime, default=datetime.datetime.utcnow)

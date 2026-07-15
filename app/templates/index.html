@@ -239,6 +239,16 @@
       <!-- ---------- Página: Unidades ---------- -->
       <section class="page" id="page-unidades" data-modulo="unidades">
         <div class="card">
+          <h2>Sincronización con Samsara (API)</h2>
+          <p class="card-desc">Jala el kilometraje real de las unidades que tengan configurado su ID de vehículo de Samsara (ver el campo en el formulario de abajo).</p>
+          <div class="row" style="flex:0; gap:10px;">
+            <button type="button" id="btn-ver-vehiculos-samsara" style="background:var(--neutral-bg); color:var(--ink); border:none; padding:9px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:.85rem;">Ver vehículos en Samsara</button>
+            <button type="button" id="btn-sincronizar-samsara" style="background:var(--primary); color:#fff; border:none; padding:9px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:.85rem;">Sincronizar kilometraje</button>
+          </div>
+          <div id="resultado-samsara" style="margin-top:14px; font-size:.85rem;"></div>
+        </div>
+
+        <div class="card">
           <h2>Estado de unidades</h2>
           <table id="tabla-unidades">
             <thead>
@@ -270,8 +280,10 @@
             </div>
             <label>Descripción</label>
             <input name="descripcion">
-            <label>Nombre en Samsara (solo si es distinto del económico, ej. "AVEO 012")</label>
+            <label>Nombre en Samsara (solo si es distinto del económico, ej. "AVEO 012") — para el CSV</label>
             <input name="nombre_samsara" placeholder="Déjalo vacío si es igual al económico">
+            <label>ID de vehículo en Samsara (para sincronizar por API, más confiable que el nombre)</label>
+            <input name="samsara_vehicle_id" placeholder='Ver botón "Ver vehículos en Samsara" abajo'>
             <div class="row" style="flex: 0;">
               <button type="submit" id="btn-guardar-unidad">Guardar unidad</button>
               <button type="button" id="btn-cancelar-edicion" class="btn-secundario oculto" style="flex:0; padding:10px 16px;">Cancelar</button>
@@ -531,6 +543,7 @@
     form.tipo_unidad.value = u.tipo_unidad;
     form.descripcion.value = u.descripcion || '';
     form.nombre_samsara.value = u.nombre_samsara || '';
+    form.samsara_vehicle_id.value = u.samsara_vehicle_id || '';
     form.intervalo_km.value = u.regla?.intervalo_km ?? '';
     form.intervalo_dias.value = u.regla?.intervalo_dias ?? '';
 
@@ -592,6 +605,7 @@
         economico: fd.get('economico'),
         descripcion: fd.get('descripcion') || null,
         nombre_samsara: fd.get('nombre_samsara') || null,
+        samsara_vehicle_id: fd.get('samsara_vehicle_id') || null,
         tipo_unidad: fd.get('tipo_unidad') || 'propia',
         intervalo_km: fd.get('intervalo_km') ? parseFloat(fd.get('intervalo_km')) : null,
         intervalo_dias: fd.get('intervalo_dias') ? parseInt(fd.get('intervalo_dias')) : null,
@@ -609,6 +623,7 @@
       economico: fd.get('economico'),
       descripcion: fd.get('descripcion') || null,
       nombre_samsara: fd.get('nombre_samsara') || null,
+      samsara_vehicle_id: fd.get('samsara_vehicle_id') || null,
       tipo_unidad: fd.get('tipo_unidad') || 'propia',
       km_actual: parseFloat(fd.get('km_actual') || 0),
       intervalo_km: fd.get('intervalo_km') ? parseFloat(fd.get('intervalo_km')) : null,
@@ -695,6 +710,45 @@
     }
     if (data.sin_dato_km.length) {
       html += `<br><span style="color:var(--slate)">Sin dato de km en el CSV:</span> ${data.sin_dato_km.join(', ')}`;
+    }
+    div.innerHTML = html;
+    cargarUnidades();
+  });
+
+  document.getElementById('btn-ver-vehiculos-samsara').addEventListener('click', async () => {
+    const div = document.getElementById('resultado-samsara');
+    div.textContent = 'Consultando Samsara...';
+    const res = await fetch('/api/samsara/vehiculos');
+    if (!res.ok) {
+      const data = await res.json();
+      div.innerHTML = `<span style="color:var(--danger)">${data.detail}</span>`;
+      return;
+    }
+    const vehiculos = await res.json();
+    if (vehiculos.length === 0) {
+      div.innerHTML = '<span style="color:var(--slate)">Samsara no regresó vehículos.</span>';
+      return;
+    }
+    div.innerHTML = '<b>ID — Nombre en Samsara</b><br>' +
+      vehiculos.map(v => `<span class="mono">${v.id}</span> — ${v.name}`).join('<br>');
+  });
+
+  document.getElementById('btn-sincronizar-samsara').addEventListener('click', async () => {
+    const div = document.getElementById('resultado-samsara');
+    div.textContent = 'Sincronizando...';
+    const res = await fetch('/api/samsara/sincronizar', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      div.innerHTML = `<span style="color:var(--danger)">${data.detail}</span>`;
+      return;
+    }
+    if (data.mensaje) {
+      div.innerHTML = `<span style="color:var(--slate)">${data.mensaje}</span>`;
+      return;
+    }
+    let html = `<b>${data.actualizadas.length}</b> unidades actualizadas desde Samsara.`;
+    if (data.sin_dato.length) {
+      html += `<br><span style="color:var(--warning)">Sin dato de odómetro en Samsara:</span> ${data.sin_dato.join(', ')}`;
     }
     div.innerHTML = html;
     cargarUnidades();

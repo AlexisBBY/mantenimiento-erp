@@ -16,6 +16,7 @@ def crear_unidad(db: Session, unidad: schemas.UnidadCreate) -> models.Unidad:
         economico=unidad.economico,
         descripcion=unidad.descripcion,
         nombre_samsara=unidad.nombre_samsara,
+        samsara_vehicle_id=unidad.samsara_vehicle_id,   # <-- ESTA LÍNEA ES LA NUEVA, agrégala aquí
         tipo_unidad=unidad.tipo_unidad,
         km_actual=unidad.km_actual,
         fecha_actualizacion_km=datetime.datetime.utcnow(),
@@ -35,8 +36,6 @@ def crear_unidad(db: Session, unidad: schemas.UnidadCreate) -> models.Unidad:
         db.refresh(db_unidad)
 
     return db_unidad
-
-
 def listar_unidades(db: Session):
     return db.query(models.Unidad).all()
 
@@ -85,6 +84,8 @@ def actualizar_unidad(db: Session, unidad_id: int, datos: schemas.UnidadUpdate):
         unidad.descripcion = datos.descripcion
     if datos.nombre_samsara is not None:
         unidad.nombre_samsara = datos.nombre_samsara
+    if datos.samsara_vehicle_id is not None:            # <-- NUEVA
+        unidad.samsara_vehicle_id = datos.samsara_vehicle_id   # <-- NUEVA
     if datos.tipo_unidad is not None:
         unidad.tipo_unidad = datos.tipo_unidad
 
@@ -105,7 +106,6 @@ def actualizar_unidad(db: Session, unidad_id: int, datos: schemas.UnidadUpdate):
     db.commit()
     db.refresh(unidad)
     return unidad
-
 # ---------- Mantenimientos ----------
 
 def crear_mantenimiento(db: Session, mant: schemas.MantenimientoCreate) -> models.Mantenimiento:
@@ -393,3 +393,20 @@ def desactivar_usuario(db: Session, usuario_id: int):
     db.commit()
     db.refresh(usuario)
     return usuario
+def unidades_con_mapeo_samsara(db: Session):
+    return db.query(models.Unidad).filter(models.Unidad.samsara_vehicle_id.isnot(None)).all()
+
+
+def sincronizar_km_con_samsara(db: Session, odometros_por_vehicle_id: dict):
+    actualizadas = []
+    sin_dato = []
+    for unidad in unidades_con_mapeo_samsara(db):
+        km = odometros_por_vehicle_id.get(unidad.samsara_vehicle_id)
+        if km is None:
+            sin_dato.append(unidad.economico)
+            continue
+        unidad.km_actual = km
+        unidad.fecha_actualizacion_km = datetime.datetime.utcnow()
+        actualizadas.append({"economico": unidad.economico, "samsara_vehicle_id": unidad.samsara_vehicle_id, "km_actual": km})
+    db.commit()
+    return {"actualizadas": actualizadas, "sin_dato": sin_dato}

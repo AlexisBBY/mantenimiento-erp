@@ -11,6 +11,7 @@ from .models import TipoMantenimiento, SubtipoCorrectivo, TipoUnidad
 # ---------- Unidad ----------
 
 class UnidadBase(BaseModel):
+    samsara_vehicle_id: Optional[str] = None
     economico: str
     descripcion: Optional[str] = None
     nombre_samsara: Optional[str] = None
@@ -23,6 +24,7 @@ class UnidadCreate(UnidadBase):
     intervalo_dias: Optional[int] = None
 
 class UnidadUpdate(BaseModel):
+    samsara_vehicle_id: Optional[str] = None
     economico: Optional[str] = None
     descripcion: Optional[str] = None
     nombre_samsara: Optional[str] = None

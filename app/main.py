@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from .database import Base, engine, SessionLocal
-from .routers import unidades, mantenimientos, importar, llantas, auth as auth_router, alertas
+from .routers import unidades, mantenimientos, importar, llantas, auth as auth_router, alertas, samsara as samsara_router
 from .auth import asegurar_admin_inicial
 
 Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.include_router(mantenimientos.router)
 app.include_router(importar.router)
 app.include_router(llantas.router)
 app.include_router(alertas.router)
+app.include_router(samsara_router.router)
 
 
 @app.get("/", response_class=HTMLResponse)
